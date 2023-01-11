@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.IO;
 
 public class MainManager : MonoBehaviour
 {
@@ -12,16 +13,31 @@ public class MainManager : MonoBehaviour
 
     public Text ScoreText;
     public GameObject GameOverText;
+
+    public Text currentPlayer;
+    public Text highScore;
     
     private bool m_Started = false;
     private int m_Points;
     
     private bool m_GameOver = false;
 
-    
+    private static int bestScore;
+    private static string bestPlayer;
+
+
+    private void Awake()
+    {
+        LoadHighscore();
+    }
+
     // Start is called before the first frame update
     void Start()
     {
+        currentPlayer.text = PlayerDataHandle.Instance.playerName;
+
+        SetHighscore();
+
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
         
@@ -65,12 +81,73 @@ public class MainManager : MonoBehaviour
     void AddPoint(int point)
     {
         m_Points += point;
+        PlayerDataHandle.Instance.score = m_Points;
         ScoreText.text = $"Score : {m_Points}";
     }
 
     public void GameOver()
     {
         m_GameOver = true;
+        CheckHighscore();
         GameOverText.SetActive(true);
+    }
+
+    private void CheckHighscore()
+    {
+        int currentScore = PlayerDataHandle.Instance.score;
+
+        if (currentScore > bestScore)
+        {
+            bestPlayer = PlayerDataHandle.Instance.playerName;
+            bestScore = currentScore;
+
+            highScore.text = $"Highscore: {bestPlayer} - {bestScore}";
+
+            SaveHighscore(bestPlayer, bestScore);
+        }
+    }
+
+    private void SetHighscore()
+    {
+        if(bestPlayer == null && bestScore == 0)
+        {
+            highScore.text = $"";
+        }
+        else
+        {
+            highScore.text = $"Highscore: {bestPlayer} - {bestScore}";
+        }
+    }
+
+    public void SaveHighscore(string bestPlayer, int bestScore)
+    {
+        SaveData data = new SaveData();
+
+        data.BestPlayer = bestPlayer;
+        data.HighScore = bestScore;
+
+        string json = JsonUtility.ToJson(data);
+        File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
+    }
+
+    public void LoadHighscore()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+
+            bestPlayer = data.BestPlayer;
+            bestScore = data.HighScore;
+        }
+    }
+
+    [System.Serializable]
+    class SaveData
+    {
+        public int HighScore;
+        public string BestPlayer;
     }
 }
